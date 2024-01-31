@@ -337,9 +337,9 @@ class MultiAgentProblem(  # type: ignore[misc]
             version=LATEST_PROBLEM_KIND_VERSION
         )
         self._kind.set_problem_class("ACTION_BASED_MULTI_AGENT")
-        for ag in self.agents:
+        """for ag in self.agents:
             for fluent in ag.fluents:
-                self._update_problem_kind_fluent(fluent)
+                self._update_problem_kind_fluent(fluent)"""
         for fluent in self.ma_environment.fluents:
             self._update_problem_kind_fluent(fluent)
         for ag in self.agents:

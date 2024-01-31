@@ -34,7 +34,7 @@ class Q_learning:
             max_valore_per_dimensione = max_x_value if i == 0 else max_y_value
             indice_codificato += valore * (max_valore_per_dimensione ** i)
         ####
-        pos = valori[1].constant_value() * max_x_value + valori[0].constant_value()
+        pos = valori[1] * max_x_value + valori[0]
         state = pos * num_state + rm_state_index
         #print(pos, rm_state_index, "stateeeeeeeeeee")
         #print(indice_codificato.simplify(), "indice_codificato")

@@ -92,6 +92,7 @@ class UPState(State):
             if value_found is not None:
                 return value_found
             current_instance = current_instance._father
+
         raise UPUsageError(
             f"The state {self} does not have a value for the value {fluent}"
         )

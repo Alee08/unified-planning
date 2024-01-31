@@ -497,7 +497,7 @@ class ExpressionManager(object):
         (fluent_exp,) = self.auto_promote(fluent_exp)
         assert fluent_exp.is_fluent_exp()
         if not isinstance(agent, str):
-            assert isinstance(agent, up.model.multi_agent.Agent), "Typing not respected"
+            #assert isinstance(agent, up.model.multi_agent.Agent), "Typing not respected"
             assert agent.environment == self.environment
             if fluent_exp.fluent() not in agent.fluents:
                 raise UPExpressionDefinitionError(

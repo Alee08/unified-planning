@@ -19,7 +19,10 @@ from collections import namedtuple
 from unified_planning.io.ma_pddl_writer import MAPDDLWriter
 from agent_rl import AgentRL
 import cv2
-
+from unified_planning.engines.ma_sequential_simulator import (
+        UPSequentialSimulatorMA as SequentialSimulatorMA,
+    )
+import cProfile
 
 class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
 
@@ -62,7 +65,7 @@ class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
         # Reimposta epsilon all'inizio di ogni episodio
         self.epsilon_start = 1.0  # Alto valore iniziale per maggiore esplorazione
         self.epsilon_end = 0.01  # Valore finale basso per maggiore sfruttamento
-        self.epsilon_decay = 0.99995  # Tasso di riduzione di epsilon
+        self.epsilon_decay = 0.995 #0.99995  # Tasso di riduzione di epsilon
         self.epsilon = self.epsilon_start  # Inizializza epsilon con il valore iniziale
         self.rewards = 0
         self.current_state = None
@@ -74,7 +77,11 @@ class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
         self.position_F = (1, 8)
         self.new_state = None
         self.num_rm_states = 4  # Aggiorna questo valore in base al tuo specifico caso
-
+        self.seq_ag = SequentialSimulatorMA(self)
+        self.current_state_env = self.seq_ag.get_initial_state()
+        self.Location = UserType("Location")
+        self.l42 = Object("l42", self.Location)
+        self.l43 = Object("l43", self.Location)
 
     def reset(self, seed=None, options=None):
         """Reset set the environment to a starting point.
@@ -102,15 +109,19 @@ class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
             # Reset della RewardMachine dell'agente
             agent.get_reward_machine().reset_to_initial_state()
             for fluente in agent.fluents:
-                chiave = (agent.name, fluente)
+                chiave = (agent, fluente)
                 self.current_state[chiave] = self.initial_values[Dot(agent, fluente)]
 
+        # Reset the overall environment state
+        self.current_state_env = self.seq_ag.get_initial_state()
         observations = []
         # Get dummy infos
         infos = {agent: {} for agent in self.agents}
 
 
+
         return observations, infos
+
 
     def step(self, actions):
         terminations, truncations, infos = {}, {}, {}
@@ -119,6 +130,7 @@ class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
         for agent in self.agents:
             current_statee = self.get_state(agent)
             action = actions[agent.name]
+
             self.execute_agent_action(agent, action)
             new_state = self.get_state(agent)
 
@@ -143,9 +155,14 @@ class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
 
 
     def execute_agent_action(self, agent, action):
+        #breakpoint()
+        appl = self.seq_ag._is_applicable(agent, self.current_state_env, action, (self.l42, self.l43))
+        if appl:
+            self.current_state_env = self.seq_ag._apply(agent, self.current_state_env, action, (self.l42, self.l43))
+            #print(self.current_state_env, "aaaaaaaa")
 
         # Controlla se tutte le precondizioni sono soddisfatte
-        if all(self.evaluate_precondition(agent, precondition) for precondition in action.preconditions):
+        """if all(self.evaluate_precondition(agent, precondition) for precondition in action.preconditions):
             # Applica gli effetti dell'azione
             for effect in action.effects:
                 fluent = effect.fluent.fluent()
@@ -174,7 +191,7 @@ class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
                 #breakpoint()
         else:
             # Le precondizioni non sono soddisfatte, l'azione non viene eseguita
-            pass
+            pass"""
 
     def evaluate_precondition(self, agent, precondition):
         #print("oooooooooooooo", precondition)
@@ -184,14 +201,20 @@ class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
             raise ValueError("La precondizione non ha due argomenti")
 
         # Determina se il primo o il secondo argomento è il fluento
+
+
         if precondition.args[0].is_fluent_exp():
             fluent = precondition.args[0].fluent()
             value = precondition.args[1].constant_value()  # Assumi che sia una costante
             reversed_order = False
-        else:
+        elif precondition.args[1].is_fluent_exp():
             fluent = precondition.args[1].fluent()
             value = precondition.args[0].constant_value()  # Assumi che sia una costante
             reversed_order = True
+        else:
+            #print(precondition)
+            breakpoint()
+
 
         # Ottieni il valore corrente del fluento dallo stato
         current_value = self.current_state[(agent.name, fluent)].constant_value()
@@ -228,13 +251,24 @@ class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
 
 
 
-    def get_state(self, agent):
+    """def get_state(self, agent):
         # Restituisce lo stato attuale senza trasformarlo
         agent_state = {}
         for k, v in self.current_state.items():
             if k[0] == agent.name:
                 agent_state[k] = v
 
+        stato = agent_state.copy()
+        return stato"""
+
+    #@functools.lru_cache(maxsize=128)
+
+    def get_state(self, agent):
+        # Restituisce lo stato dell'agente come un dizionario dei suoi fluenti e valori
+        agent_state = {}
+        for fluent in agent.fluents:
+            fluent_key = Dot(agent, fluent)
+            agent_state[fluent_key] = self.current_state_env.get_value(fluent_key).constant_value()
         stato = agent_state.copy()
         return stato
 
@@ -251,13 +285,14 @@ class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
 
     # Potresti dover implementare o aggiornare questa funzione
     def detect_event(self, ag, state_rm):
-
-        chiave_1 = (ag.name, ag.fluent('pos_x'))
-        chiave_2 = (ag.name, ag.fluent('pos_y'))
+        # Recupera lo stato corrente dell'agente
         current_state_ = self.get_state(ag)
-        pos_x = current_state_[chiave_1].constant_value()
-        pos_y = current_state_[chiave_2].constant_value()
-        #print((pos_x, pos_y), "ooooo", ag.name)
+
+        # Usa direttamente le chiavi fluenti per accedere ai valori nello stato dell'agente
+        pos_x = current_state_[Dot(ag, ag.fluent('pos_x'))]
+        pos_y = current_state_[Dot(ag, ag.fluent('pos_y'))]
+        #print(ag.name, pos_x, pos_y)
+        # Logica per determinare gli eventi basata sulla posizione corrente dell'agente
         if ag.name == "italiano":
             if state_rm == "start" and (pos_x, pos_y) == self.position_A:
                 return "reached_A"
@@ -361,21 +396,25 @@ class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
             pygame.draw.rect(self.screen, (128, 128, 128),
                              (wall_x * cell_size, wall_y * cell_size, cell_size, cell_size))
 
+        # Per ciascun agente, ottieni lo stato attuale e disegna l'agente sulla griglia
+        for ag in self.agents:
+            # Ottieni lo stato attuale dell'agente
+            agent_state = self.get_state(ag)
 
+            # Estrai le posizioni x e y dall'oggetto Dot
+            pos_x = agent_state[Dot(ag, ag.fluent('pos_x'))]
+            pos_y = agent_state[Dot(ag, ag.fluent('pos_y'))]
 
-        a1 = self.agents[0]
-        chiave_1 = (a1.name, a1.fluent('pos_x'))
-        chiave_2 = (a1.name, a1.fluent('pos_y'))
-        pos_x_a1 = self.current_state[chiave_1].constant_value()
-        pos_y_a1 = self.current_state[chiave_2].constant_value()
-        self.screen.blit(self.ita_man, (pos_x_a1 * cell_size, pos_y_a1 * cell_size))
+            # Seleziona l'immagine dell'agente da disegnare
+            if ag.name == 'italiano':
+                agent_image = self.ita_man
+            elif ag.name == 'catalano':
+                agent_image = self.bcn_man
+            else:
+                continue  # Salta l'agente se non riconosciuto
 
-        a2 = self.agents[1]
-        chiave_1 = (a2.name, a2.fluent('pos_x'))
-        chiave_2 = (a2.name, a2.fluent('pos_y'))
-        pos_x_a2 = self.current_state[chiave_1].constant_value()
-        pos_y_a2 = self.current_state[chiave_2].constant_value()
-        self.screen.blit(self.bcn_man, (pos_x_a2 * 101, pos_y_a2 * 101))
+            # Disegna l'agente sulla griglia
+            self.screen.blit(agent_image, (pos_x * cell_size, pos_y * cell_size))
 
         #pos_colors = (0, 0, 100)
         #pos_color = pos_colors[i % len(pos_colors)]  # Cicla i colori se ci sono più guardie dei colori disponibili
@@ -386,13 +425,13 @@ class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
         #posizioni = [self.position_A, self.position_B, self.position_C]
 
         #pygame.draw.rect(self.screen, pos_colors,(pos[0] * cell_size, pos[1] * cell_size, cell_size, cell_size))
-        self.screen.blit(self.colosseo, (position_A[0] * 101, position_A[1] * 101))
-        self.screen.blit(self.piazza, (position_B[0] * 101, position_B[1] * 101))
-        self.screen.blit(self.piazza_di_spagna, (position_C[0] * 101, position_C[1] * 100.5))
+        self.screen.blit(self.colosseo, (self.position_A[0] * 101, self.position_A[1] * 101))
+        self.screen.blit(self.piazza, (self.position_B[0] * 101, self.position_B[1] * 101))
+        self.screen.blit(self.piazza_di_spagna, (self.position_C[0] * 101, self.position_C[1] * 100.5))
 
-        self.screen.blit(self.madrid, (position_D[0] * 101, position_D[1] * 101))
-        self.screen.blit(self.battlo, (position_E[0] * 101, position_E[1] * 101))
-        self.screen.blit(self.bcn, (position_F[0] * 101, position_F[1] * 100.5))
+        self.screen.blit(self.madrid, (self.position_D[0] * 101, self.position_D[1] * 101))
+        self.screen.blit(self.battlo, (self.position_E[0] * 101, self.position_E[1] * 101))
+        self.screen.blit(self.bcn, (self.position_F[0] * 101, self.position_F[1] * 100.5))
 
         #self.screen.blit(self.prisoner_image, (pos_x * cell_size, pos_y * cell_size))
 
@@ -440,13 +479,14 @@ class MAP_RL_Env(ParallelEnv, MultiAgentProblem):
 
 
 
-from pettingzoo.test import parallel_api_test
-import random
-NUM_EPISODES = 100000  # Numero di partite da giocare per l'apprendimento
-if __name__ == "__main__":
-    import wandb
 
-    #wandb.init(project='maze_RL', entity='alee8')
+#@profile
+def main():
+    import wandb
+    from pettingzoo.test import parallel_api_test
+    import random
+    NUM_EPISODES = 100000  # Numero di partite da giocare per l'apprendimento
+    # wandb.init(project='maze_RL', entity='alee8')
     env = MAP_RL_Env()
     env.init_pygame()
 
@@ -463,46 +503,98 @@ if __name__ == "__main__":
     env.set_initial_value(Dot(italiano, pos_x), 2)
     env.set_initial_value(Dot(italiano, pos_y), 2)
 
-
     catalano.add_public_fluent(pos_x)
     catalano.add_public_fluent(pos_y)
     env.add_agent(catalano)
     env.set_initial_value(Dot(catalano, pos_x), 5)
     env.set_initial_value(Dot(catalano, pos_y), 5)
 
+    Location = UserType("Location")
+    # s1 = Object("s1", button)
+    # s2 = Object("s2", button)
+    # s3 = Object("s3", button)
+    # d1 = Object("d1", door)
+    # d2 = Object("d2", door)
+    # d3 = Object("d3", door)
+    # br1 = Object("br1", bridge)
+    # br2 = Object("br2", bridge)
+    # br3 = Object("br3", bridge)
+    # bo1 = Object("bo1", boat)
+    # bo2 = Object("bo2", boat)
+    # bo3 = Object("bo3", boat)
+
+    # Righe/Colonne
+    l11 = Object("l11", Location)
+    l12 = Object("l12", Location)
+    l13 = Object("l13", Location)
+    l14 = Object("l14", Location)
+    l21 = Object("l21", Location)
+    l22 = Object("l22", Location)
+    l23 = Object("l23", Location)
+    l24 = Object("l24", Location)
+    l31 = Object("l31", Location)
+    l32 = Object("l32", Location)
+    l33 = Object("l33", Location)
+    l34 = Object("l34", Location)
+    l41 = Object("l41", Location)
+    l42 = Object("l42", Location)
+    l43 = Object("l43", Location)
+    l44 = Object("l44", Location)
+    env.add_objects([l11, l12, l13, l14, l21, l22, l23, l24, l31, l32, l33, l34, l41, l42, l43, l44])
+
+    connections = [
+        (l11, l12), (l12, l13),  # (l13, l14), -> bridge
+        (l21, l22), (l22, l23),  # (l23, l24), -> bridge
+        (l31, l32), (l33, l34),  # (l32, l33), -> bridge
+        (l42, l43),  # (l43, l44), ->door (l41, l42),->boat
+
+        (l11, l21), (l21, l31), (l31, l41),
+        (l12, l22), (l22, l32), (l32, l42),
+        (l23, l33), (l33, l43),
+        # (l14, l24), (l34, l44) -> boats
+    ]
+    is_connected = Fluent("is_connected", BoolType(), l1=Location, l2=Location)
+    for connection in connections:
+        env.set_initial_value(is_connected(connection[0], connection[1]), True)
+        env.set_initial_value(is_connected(connection[1], connection[0]), True)
+
+    env.ma_environment.add_fluent(is_connected, default_initial_value=False)
     # Azione move_down
-    move_up = InstantaneousAction("up")
+    move_up = InstantaneousAction("up", l_from=Location, l_to=Location)
+    l_from = move_up.parameter("l_from")
+    l_to = move_up.parameter("l_to")
     move_up.add_precondition(LT(0, pos_y))  # Precondizione: pos_y > 0
+    move_up.add_precondition(is_connected(l_from, l_to))
     move_up.add_decrease_effect(pos_y, 1)
-    #move_down.add_effect(pos_y, Minus(pos_y, 1))  # Effetto: decrementa pos_y di 1
+    # move_down.add_effect(pos_y, Minus(pos_y, 1))  # Effetto: decrementa pos_y di 1
     italiano.add_rl_action(move_up)
     catalano.add_rl_action(move_up)
 
     # Azione move_up
-    move_down = InstantaneousAction("down")
+    move_down = InstantaneousAction("down", l_from=Location, l_to=Location)
     move_down.add_precondition(LT(pos_y, max_y_value - 1))  # Precondizione: pos_y < max_y_value
     move_down.add_increase_effect(pos_y, 1)
-    #move_up.add_effect(pos_y, Plus(pos_y, 1))  # Effetto: incrementa pos_y di 1
+    # move_up.add_effect(pos_y, Plus(pos_y, 1))  # Effetto: incrementa pos_y di 1
     italiano.add_rl_action(move_down)
     catalano.add_rl_action(move_down)
 
     # Azione move_left
-    move_left = InstantaneousAction("left")
+    move_left = InstantaneousAction("left", l_from=Location, l_to=Location)
     move_left.add_precondition(LT(0, pos_x))  # Precondizione: pos_x > 0
     move_left.add_decrease_effect(pos_x, 1)
-    #move_left.add_effect(pos_x, Minus(pos_x, 1))  # Effetto: decrementa pos_x di 1
+    # move_left.add_effect(pos_x, Minus(pos_x, 1))  # Effetto: decrementa pos_x di 1
     italiano.add_rl_action(move_left)
     catalano.add_rl_action(move_left)
 
     # Azione move_right
-    move_right = InstantaneousAction("right")
+    move_right = InstantaneousAction("right", l_from=Location, l_to=Location)
     move_right.add_precondition(LT(pos_x, max_x_value - 1))  # Precondizione: pos_x < max_x_value
     move_right.add_increase_effect(pos_x, 1)
-    #move_right.add_effect(pos_x, Plus(pos_x, 1))  # Effetto: incrementa pos_x di 1
+    # move_right.add_effect(pos_x, Plus(pos_x, 1))  # Effetto: incrementa pos_x di 1
     italiano.add_rl_action(move_right)
     catalano.add_rl_action(move_right)
 
-    #Reward Machines
+    # Reward Machines
     initial_state = "start"
     reward_for_pos1 = 0
     reward_for_pos2 = 0  # Puoi scegliere ricompense diverse se necessario
@@ -521,7 +613,6 @@ if __name__ == "__main__":
     position_B = (x_B, y_B)
     position_C = (x_C, y_C)
 
-
     x_D, y_D = 8, 1
     x_E, y_E = 7, 5
     x_F, y_F = 1, 8
@@ -535,11 +626,11 @@ if __name__ == "__main__":
     catalano.set_reward_machine(RM_2)
 
     q_learning1 = Q_learning(
-                state_space_size=env.grid_width * env.grid_height * env.num_rm_states,
-                action_space_size=4,
-                learning_rate=0.1,
-                gamma=0.9,
-            )
+        state_space_size=env.grid_width * env.grid_height * env.num_rm_states,
+        action_space_size=4,
+        learning_rate=0.1,
+        gamma=0.9,
+    )
 
     q_learning2 = Q_learning(
         state_space_size=env.grid_width * env.grid_height * env.num_rm_states,
@@ -550,13 +641,18 @@ if __name__ == "__main__":
     italiano.set_learning_algorithm(q_learning1)
     catalano.set_learning_algorithm(q_learning2)
 
-    #env.initialize_agents_q_learning()
+    # from unified_planning.engines.compilers import Grounder, GrounderHelper
+
+    # _grounder = GrounderHelper(env)
+    # seq_ag = SequentialSimulatorMA(env)
+    # current_state_env = seq_ag.get_initial_state()
+    # env.initialize_agents_q_learning()
     for episode in range(NUM_EPISODES):
         obs, infos = env.reset()
         done = {a.name: False for a in env.agents}
         rewards = {a.name: 0 for a in env.agents}  # Inizializza le ricompense episodiche
-        #record_episode = episode % 10000 == 0
-        record_episode = False
+        record_episode = episode % 10000 == 0
+        #record_episode = False
         while not all(done.values()):
             actions = {}
             for ag in env.agents:
@@ -564,13 +660,23 @@ if __name__ == "__main__":
                 RM_agent = ag.get_reward_machine()
                 rm_current_state = RM_agent.get_current_state()
 
-                #action_index = env.agents_q_learning[ag.name].choose_action(current_state, env.epsilon, ag, rm_current_state)
-                action_index = ag.get_learning_algorithm().choose_action(current_state, env.epsilon, ag, rm_current_state)
+                # action_index = env.agents_q_learning[ag.name].choose_action(current_state, env.epsilon, ag, rm_current_state)
+                action_index = ag.get_learning_algorithm().choose_action(current_state, env.epsilon, ag,
+                                                                         rm_current_state)
                 actions[ag.name] = ag.actions_dix()[action_index]
 
-            obs, rewards, done, truncations, infos = env.step(actions)
+                # grounded_act = _grounder.ground_action(actions[ag.name], actions[ag.name].parameters)
+                # appl = seq_ag._is_applicable(ag, current_state_env, actions[ag.name], (l42, l43))
+                # if appl:
+                #    current_state_env = seq_ag._apply(ag, current_state_env, actions[ag.name], (l42, l43))
+                # print("Action:", actions[ag.name], appl)
+                # print(env.get_state(ag))
+                # breakpoint()
 
-            env.render(episode, obs) #commentare x training
+            obs, rewards, done, truncations, infos = env.step(actions)
+            # print(obs)
+            # breakpoint()
+            # env.render(episode, obs) #commentare x training
             if record_episode:
                 env.render(episode, obs)  # Cattura frame durante l'episodio
 
@@ -579,7 +685,16 @@ if __name__ == "__main__":
         if record_episode:
             env.save_episode(episode)  # Salva il video solo alla fine dell'episodio
 
-
-        #wandb.log({**rewards, 'epsilon': env.epsilon, 'episode': episode, 'step': env.timestep})
+        # wandb.log({**rewards, 'epsilon': env.epsilon, 'episode': episode, 'step': env.timestep})
         print(f"Episodio {episode + 1}: Ricompensa = {rewards}, Step: {env.timestep}, Epsilon = {env.epsilon} ")
+
+
+if __name__ == "__main__":
+    main()
+    #cProfile.run('main()', 'output_filename.prof')
+    #import pstats
+
+    # Sostituisci 'output_filename.prof' con il percorso del tuo file .prof
+    #p = pstats.Stats('output_filename.prof')
+    #p.strip_dirs().sort_stats('cumulative').print_stats(100)  # Stampa le prime 10 righe
 

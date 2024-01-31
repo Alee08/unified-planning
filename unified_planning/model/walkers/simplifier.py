@@ -22,7 +22,7 @@ import unified_planning.model.walkers as walkers
 from unified_planning.model.fnode import FNode
 from unified_planning.model.types import _UserType
 import unified_planning.model.operators as op
-
+from unified_planning.model.multi_agent import MultiAgentProblem
 
 class Simplifier(walkers.dag.DagWalker):
     """Performs basic simplifications of the input expression.
@@ -34,12 +34,12 @@ class Simplifier(walkers.dag.DagWalker):
     def __init__(
         self,
         environment: "unified_planning.environment.Environment",
-        problem: Optional["unified_planning.model.problem.Problem"] = None,
+        problem: Optional["unified_planning.model.AbstractProblem"] = None,
     ):
         walkers.dag.DagWalker.__init__(self)
         self.environment = environment
         self.manager = environment.expression_manager
-        if problem is not None:
+        if problem is not None and not isinstance(problem, MultiAgentProblem):
             self.static_fluents = problem.get_static_fluents()
         else:
             self.static_fluents = set()

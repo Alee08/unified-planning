@@ -26,11 +26,12 @@ class StateEvaluator(QuantifierSimplifier):
     """Same to the :class:`~unified_planning.model.walkers.QuantifierSimplifier`, but takes an instance of
     :class:`~unified_planning.model.State` instead of the `assignment` map."""
 
-    def __init__(self, problem: "up.model.problem.Problem"):
+    def __init__(self, problem: "up.model.problem.MultiAgentProblem"):
         QuantifierSimplifier.__init__(self, problem.environment, problem)
 
     def evaluate(
         self,
+        agent: "Agent",
         expression: "FNode",
         state: "up.model.state.State",
         _variable_assignments: Dict["Expression", "Expression"] = {},
@@ -50,7 +51,9 @@ class StateEvaluator(QuantifierSimplifier):
         self._variable_assignments: Optional[
             Dict["Expression", "Expression"]
         ] = _variable_assignments
+        #breakpoint()
         self._state = state
+        self.agent = agent
         r = self.walk(expression)
         self._variable_assignments = None
         assert r.is_constant()
@@ -74,10 +77,36 @@ class StateEvaluator(QuantifierSimplifier):
         return r
 
     def walk_fluent_exp(self, expression: "FNode", args: List["FNode"]) -> "FNode":
-        new_exp = self.manager.FluentExp(expression.fluent(), tuple(args))
+
+        #new_exp = self.manager.FluentExp(expression.fluent(), tuple(args))
+        if expression.fluent() in self.agent.fluents:
+            new_exp = self.manager.Dot(self.agent, expression)
+        else:
+            new_exp = self.manager.FluentExp(expression.fluent(), tuple(args))
+        #breakpoint()
         return self._state.get_value(new_exp)
+
 
     def walk_param_exp(self, expression: "FNode", args: List["FNode"]) -> "FNode":
         raise UPProblemDefinitionError(
             f"The StateEvaluator.evaluate should only be called on grounded expressions."
         )
+
+    """def walk_dot(self, expression: FNode, args: List[FNode]) -> FNode:
+        breakpoint()
+        agent = self._problem.agent(expression.agent())
+        fluent = expression.args[0].fluent()
+        objects = expression.args[0].args
+        breakpoint()
+        value = self._state.get_value(fluent)
+
+
+        ok = self.manager.Dot(expression.agent(), args[0])
+
+        return value"""
+
+    def walk_dot(self, expression: FNode, args: List[FNode]) -> FNode:
+        return self._state.get_value(expression)
+
+
+        #return self.manager.Dot(expression.agent(), args[0])

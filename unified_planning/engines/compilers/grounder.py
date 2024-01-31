@@ -21,6 +21,7 @@ from unified_planning.plans import ActionInstance
 from unified_planning.engines.mixins.compiler import CompilationKind, CompilerMixin
 from unified_planning.engines.results import CompilerResult
 from unified_planning.model import (
+    AbstractProblem,
     Problem,
     ProblemKind,
     Action,
@@ -76,7 +77,7 @@ class GrounderHelper:
             If this map is `None`, the `unified_planning` grounding algorithm is applied.
         :param prune_actions: If true, the grounder prunes actions exploiting the simplification of static fluents.
         """
-        assert isinstance(problem, Problem)
+        assert isinstance(problem, AbstractProblem)
         self._problem = problem
         self._grounding_actions_map = grounding_actions_map
         if grounding_actions_map is not None:
@@ -255,6 +256,7 @@ class Grounder(engines.engine.Engine, CompilerMixin):
     @staticmethod
     def supported_kind() -> ProblemKind:
         supported_kind = ProblemKind(version=LATEST_PROBLEM_KIND_VERSION)
+        supported_kind.set_problem_class("ACTION_BASED_MULTI_AGENT")
         supported_kind.set_problem_class("ACTION_BASED")
         supported_kind.set_typing("FLAT_TYPING")
         supported_kind.set_typing("HIERARCHICAL_TYPING")

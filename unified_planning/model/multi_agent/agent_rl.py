@@ -2,6 +2,7 @@ import unified_planning as up
 from agent import Agent
 from RewardMachine import RewardMachine
 from typing import Optional, List, Union, Iterable
+from message import Message
 class AgentRL(Agent):
     """
     Estende la classe Agent per includere aspetti specifici del Reinforcement Learning,
@@ -23,8 +24,12 @@ class AgentRL(Agent):
         """
         super().__init__(name, ma_problem)
         self.reward_machine = reward_machine
+        self.ma_problem = ma_problem
         self.actions_dict = {}
         self.learning_algorithm = None
+        self.message_conditions = None
+        self.messages = {}  # Uno stato interno per tracciare informazioni rilevanti
+        self.message_sent = False
 
         # Potrebbe essere necessario aggiungere ulteriori attributi specifici per il RL
 
@@ -79,6 +84,44 @@ class AgentRL(Agent):
         """
         return self.learning_algorithm
 
+    def _send_message(self, agents, condition):
+        """
+        Invia un messaggio agli altri agenti quando l'agente raggiunge uno stato "X".
+
+        :param condition: La condizione da comunicare agli altri agenti.
+        """
+        message = Message(self.name, condition)
+        # Logica per inviare il messaggio agli altri agenti
+        # Potrebbe essere qualcosa come:
+        self.ma_problem.broadcast_message(agents, message)
+
+    def _receive_message(self, message):
+        # Gestisci il messaggio ricevuto
+        if isinstance(message, Message):
+            # Aggiorna lo stato interno in base al messaggio
+            self.process_message(message)
+
+    def process_message(self, message):
+        # Logica specifica per processare il messaggio
+        # Ad esempio, aggiorna lo stato interno o cambia strategia
+        chiave_messaggio = (message.sender, message.condition[0][0])  # Crea una tupla (agente, fluent)
+        self.messages[chiave_messaggio] = message.condition[0][1]
+        #self.messages[message.sender] = message.condition
+
+        # Puoi implementare qui ulteriori logiche, come reagire specificamente a certi tipi di messaggi
+        """if message.condition == some_specific_condition:
+            self.take_specific_action()"""
+
+    def take_specific_action(self):
+        # Implementa azioni specifiche da intraprendere in risposta a certi messaggi o condizioni
+        pass
+
+    def reset_messages(self):
+        self.messages = {}
+        self.message_conditions = None
+
+    def return_messages(self):
+        return self.messages
 
     def execute_action(self, action_name, state):
         for action in self.actions:

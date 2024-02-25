@@ -1,0 +1,83 @@
+digraph {
+	"a1.move(l41, l31)" [color="firebrick2"]
+	"a1.move(l41, l31)" -> "a1.move(l31, l21)"
+	"a1.move(l41, l31)" -> "a2.push_button(s3, l43, l34, l24)"
+	"a1.move(l41, l31)" -> "a3.move(l22, l12)"
+	"a1.move(l41, l31)" -> "a4.move(l12, l13)"
+	"a2.move(l33, l43)" [color="gold2"]
+	"a2.move(l33, l43)" -> "a1.move(l31, l21)"
+	"a2.move(l33, l43)" -> "a2.push_button(s3, l43, l34, l24)"
+	"a2.move(l33, l43)" -> "a3.move(l22, l12)"
+	"a2.move(l33, l43)" -> "a4.move(l12, l13)"
+	"a3.move(l21, l22)" [color="cornflowerblue"]
+	"a3.move(l21, l22)" -> "a1.move(l31, l21)"
+	"a3.move(l21, l22)" -> "a2.push_button(s3, l43, l34, l24)"
+	"a3.move(l21, l22)" -> "a3.move(l22, l12)"
+	"a3.move(l21, l22)" -> "a4.move(l12, l13)"
+	"a4.move(l11, l12)" [color="darkorange1"]
+	"a4.move(l11, l12)" -> "a1.move(l31, l21)"
+	"a4.move(l11, l12)" -> "a2.push_button(s3, l43, l34, l24)"
+	"a4.move(l11, l12)" -> "a3.move(l22, l12)"
+	"a4.move(l11, l12)" -> "a4.move(l12, l13)"
+	"a1.move(l31, l21)" [color="firebrick2"]
+	"a1.move(l31, l21)" -> "a1.move(l21, l11)"
+	"a1.move(l31, l21)" -> "a2.move(l43, l33)"
+	"a1.move(l31, l21)" -> "a3.move(l12, l13)"
+	"a2.push_button(s3, l43, l34, l24)" [color="gold2"]
+	"a2.push_button(s3, l43, l34, l24)" -> "a1.move(l21, l11)"
+	"a2.push_button(s3, l43, l34, l24)" -> "a2.move(l43, l33)"
+	"a2.push_button(s3, l43, l34, l24)" -> "a3.move(l12, l13)"
+	"a3.move(l22, l12)" [color="cornflowerblue"]
+	"a3.move(l22, l12)" -> "a1.move(l21, l11)"
+	"a3.move(l22, l12)" -> "a2.move(l43, l33)"
+	"a3.move(l22, l12)" -> "a3.move(l12, l13)"
+	"a4.move(l12, l13)" [color="darkorange1"]
+	"a4.move(l12, l13)" -> "a1.move(l21, l11)"
+	"a4.move(l12, l13)" -> "a2.move(l43, l33)"
+	"a4.move(l12, l13)" -> "a3.move(l12, l13)"
+	"a1.move(l21, l11)" [color="firebrick2"]
+	"a1.move(l21, l11)" -> "a1.move(l11, l12)"
+	"a2.move(l43, l33)" [color="gold2"]
+	"a2.move(l43, l33)" -> "a1.move(l11, l12)"
+	"a3.move(l12, l13)" [color="cornflowerblue"]
+	"a3.move(l12, l13)" -> "a1.move(l11, l12)"
+	"a1.move(l11, l12)" [color="firebrick2"]
+	"a1.move(l11, l12)" -> "a1.move(l12, l13)"
+	"a1.move(l12, l13)" [color="firebrick2"]
+	"a1.move(l12, l13)" -> "a4.start_cross(br1, l13, l14)"
+	"a4.start_cross(br1, l13, l14)" [color="darkorange1"]
+	"a4.start_cross(br1, l13, l14)" -> "a1.cross(br1, l13, l14)"
+	"a4.start_cross(br1, l13, l14)" -> "a3.cross(br1, l13, l14)"
+	"a4.start_cross(br1, l13, l14)" -> "a4.cross(br1, l13, l14)"
+	"a1.cross(br1, l13, l14)" [color="firebrick2"]
+	"a1.cross(br1, l13, l14)" -> "a1.end_cross(br1, l13, l14)"
+	"a3.cross(br1, l13, l14)" [color="cornflowerblue"]
+	"a3.cross(br1, l13, l14)" -> "a1.end_cross(br1, l13, l14)"
+	"a4.cross(br1, l13, l14)" [color="darkorange1"]
+	"a4.cross(br1, l13, l14)" -> "a1.end_cross(br1, l13, l14)"
+	"a1.end_cross(br1, l13, l14)" [color="firebrick2"]
+	"a1.end_cross(br1, l13, l14)" -> "a2.move(l33, l34)"
+	"a2.move(l33, l34)" [color="gold2"]
+	"a2.move(l33, l34)" -> "a2.move(l34, l24)"
+	"a2.move(l34, l24)" [color="gold2"]
+	"a2.move(l34, l24)" -> "a5.start_row(bo3, l24, l14)"
+	"a5.start_row(bo3, l24, l14)" [color="darkgreen"]
+	"a5.start_row(bo3, l24, l14)" -> "a2.row1(bo3, l24, l14)"
+	"a2.row1(bo3, l24, l14)" [color="gold2"]
+	"a2.row1(bo3, l24, l14)" -> "a5.row2(bo3, l24, l14)"
+	"a5.row2(bo3, l24, l14)" [color="darkgreen"]
+	"a5.row2(bo3, l24, l14)" -> "a1.end_row(bo3, l24, l14)"
+	"a1.end_row(bo3, l24, l14)" [color="firebrick2"]
+	// Legenda
+	{
+		rank = max;
+		label="Legenda";
+		labelloc="b";
+		rankdir="LR";
+		"a1" [shape=none, margin=0, label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"><TR><TD WIDTH="30" HEIGHT="30" ALIGN="CENTER" BGCOLOR="firebrick2"></TD><TD>a1</TD></TR></TABLE>>];
+		"a2" [shape=none, margin=0, label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"><TR><TD WIDTH="30" HEIGHT="30" ALIGN="CENTER" BGCOLOR="gold2"></TD><TD>a2</TD></TR></TABLE>>];
+		"a3" [shape=none, margin=0, label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"><TR><TD WIDTH="30" HEIGHT="30" ALIGN="CENTER" BGCOLOR="cornflowerblue"></TD><TD>a3</TD></TR></TABLE>>];
+		"a4" [shape=none, margin=0, label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"><TR><TD WIDTH="30" HEIGHT="30" ALIGN="CENTER" BGCOLOR="darkorange1"></TD><TD>a4</TD></TR></TABLE>>];
+		"a5" [shape=none, margin=0, label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0"><TR><TD WIDTH="30" HEIGHT="30" ALIGN="CENTER" BGCOLOR="darkgreen"></TD><TD>a5</TD></TR></TABLE>>];
+	}
+}

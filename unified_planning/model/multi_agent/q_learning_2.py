@@ -8,9 +8,11 @@ from pettingzoo import ParallelEnv
 from unified_planning.shortcuts import *
 
 class Q_learning:
-    def __init__(self, state_space_size, action_space_size, learning_rate, gamma):
+    def __init__(self, state_space_size, action_space_size, max_x_value, max_y_value, learning_rate, gamma):
         self.state_space_size = state_space_size
         self.action_space_size = action_space_size
+        self.max_x_value = max_x_value
+        self.max_y_value = max_y_value
         self.learning_rate = learning_rate
         self.gamma = gamma
         self.q_table = np.zeros((state_space_size, action_space_size))
@@ -21,37 +23,44 @@ class Q_learning:
         num_state = RM_agent.numbers_state()
         #rm_current_state = RM_agent.get_current_state()
         rm_state_index = RM_agent.get_state_index(state_rm)
+        # Assumi che 'state' contenga le coordinate 'pos_x' e 'pos_y' come primi due valori
+        pos_x, pos_y = state[(agent.name, 'pos_x')], state[(agent.name, 'pos_y')]
+        #valori = list(state.values())
 
-        valori = list(state.values())
         #print(valori, "oooo")
         #ok = valori[1].constant_value() * 10 + valori[0].constant_value()
         # Definisci i valori massimi per le dimensioni x e y
-        max_x_value = 4  # Assicurati che questo valore sia adeguato
-        max_y_value = 4  # Assicurati che questo valore sia adeguato
+        #max_x_value = 10  # Assicurati che questo valore sia adeguato
+        #max_y_value = 10  # Assicurati che questo valore sia adeguato
         # Calcola l'indice codificato
-        indice_codificato = 0
+        """indice_codificato = 0
         for i, valore in enumerate(valori):
-            max_valore_per_dimensione = max_x_value if i == 0 else max_y_value
-            indice_codificato += valore * (max_valore_per_dimensione ** i)
+            max_valore_per_dimensione = self.max_x_value if i == 0 else self.max_y_value
+            indice_codificato += valore * (max_valore_per_dimensione ** i)"""
         ####
-        pos = valori[1] * max_x_value + valori[0]
-        state = pos * num_state + rm_state_index
+        pos_index = pos_y * self.max_x_value + pos_x
+        #pos = valori[1] * self.max_x_value + valori[0]
+        state = pos_index * num_state + rm_state_index
         #print(pos, rm_state_index, "stateeeeeeeeeee")
         #print(indice_codificato.simplify(), "indice_codificato")
         ####
         # Verifica e semplifica l'indice codificato
-        if isinstance(indice_codificato, FNode):
+        """if isinstance(indice_codificato, FNode):
             indice_codificato = indice_codificato.simplify()
-            indice_codificato = indice_codificato.constant_value()
+            indice_codificato = indice_codificato.constant_value()"""
+        # Assicurati che l'indice finale sia all'interno dei limiti della Q-table
 
+        if state >= self.state_space_size:
+            print(agent.name, state, "<", self.state_space_size, "\n", num_state)
+            raise ValueError("Indice di stato codificato supera la dimensione della Q-table")
 
         #print("x,y", indice_codificato)
         #print("rm_state_index", rm_state_index)
         # Calcola l'indice finale dello stato
-        enc_state = indice_codificato * num_state + rm_state_index
+        #enc_state = indice_codificato * num_state + rm_state_index
         #print(rm_state_index)
-        if enc_state >= self.state_space_size:
-            raise ValueError("Indice di stato codificato supera la dimensione della Q-table")
+        #if enc_state >= self.state_space_size:
+        #    raise ValueError("Indice di stato codificato supera la dimensione della Q-table")
         return state
 
     def update(self, state, next_state, action, reward, agent, state_rm, new_state_rm):

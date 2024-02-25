@@ -88,14 +88,47 @@ class UPState(State):
         """
         current_instance: Optional[UPState] = self
         while current_instance is not None:
+            #breakpoint()
             value_found = current_instance._values.get(fluent, None)
             if value_found is not None:
                 return value_found
             current_instance = current_instance._father
-
         raise UPUsageError(
             f"The state {self} does not have a value for the value {fluent}"
         )
+
+    def get_dot_values(self, agent: "Agent", only_true_values: Optional[bool] = False) -> "up.model.FNode":
+        """
+        This method retrieves the value of the given fluent in the `State`.
+        NOTE that the searched fluent must be set in the state otherwise an
+        exception is raised.
+
+        :params fluent: The fluent searched for in the `UPState`.
+        :return: The value set for the given fluent.
+        """
+        current_instance: Optional[UPState] = self
+        agent_states = {}
+        while current_instance is not None:
+            for i, v  in current_instance._values.items():
+
+                if i.is_dot() and i.agent()==agent.name:
+                    # Extract the fluent name and its value
+                    fluent_name = str(i.args[0])  # Assuming args[0] contains the fluent name
+                    fluent_value = v.constant_value()
+                    # Apply the filter for only_true_values if needed
+                    if only_true_values and (v.is_bool_constant() and v.is_false()):
+                        continue  # Skip this fluent if only_true_values is True and the fluent's value is not True
+                    agent_states[(agent.name, fluent_name)] = fluent_value
+
+            #breakpoint()
+            if agent_states is not {}:
+                return agent_states
+            current_instance = current_instance._father
+
+        raise UPUsageError(
+            f"The state {self} does not have a value for the agent {agent.name} and the value {fluent}"
+        )
+
 
     def make_child(
         self,

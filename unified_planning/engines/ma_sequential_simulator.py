@@ -179,8 +179,10 @@ class UPSequentialSimulatorMA(Engine, SequentialSimulatorMixin):
         of the state given here, therefore an up.model.UPState.
         """
         assert isinstance(self._problem, MultiAgentProblem), "supported_kind not respected"
+
         if self._initial_state is None:
             self._initial_state = UPState(self._problem.initial_values)
+
             """for si in self._state_invariants:
                 if not self._se.evaluate(si, self._initial_state).bool_constant_value():
                     raise UPProblemDefinitionError(
@@ -218,6 +220,7 @@ class UPSequentialSimulatorMA(Engine, SequentialSimulatorMixin):
 
     def _apply(
         self,
+        env,
         agent: "Agent",
         state: "up.model.State",
         action: "up.model.Action",
@@ -239,15 +242,17 @@ class UPSequentialSimulatorMA(Engine, SequentialSimulatorMixin):
         _, reason = self.get_unsatisfied_conditions(
             agent, state, action, parameters, early_termination=True, full_check=False
         )
+
         if reason is not None:
             return None
         try:
-            return self.apply_unsafe(agent, state, action, parameters)
+            return self.apply_unsafe(env, agent, state, action, parameters)
         except (UPInvalidActionError, UPConflictingEffectsException):
             return None
 
     def apply_unsafe(
         self,
+        env,
         agent: "Agent",
         state: "up.model.State",
         action_or_action_instance: Union["up.model.Action", "up.plans.ActionInstance"],
@@ -296,7 +301,7 @@ class UPSequentialSimulatorMA(Engine, SequentialSimulatorMixin):
                 cast(up.model.mixins.ObjectsSetMixin, self._problem)
             ):
                 #print(updated_values, "Ooooo\n", effect, "\n", assigned_fluent)
-                fluent, value = self._evaluate_effect(agent, effect, state, updated_values, assigned_fluent, em)
+                fluent, value = self._evaluate_effect(env, agent, effect, state, updated_values, assigned_fluent, em)
                 if fluent is not None:
                     assert value is not None
                     #updated_values[fluent] = value
@@ -320,6 +325,7 @@ class UPSequentialSimulatorMA(Engine, SequentialSimulatorMixin):
 
     def _evaluate_effect(
             self,
+            env,
             agent: "Agent",
             effect: "up.model.Effect",
             state: "up.model.State",
@@ -332,18 +338,21 @@ class UPSequentialSimulatorMA(Engine, SequentialSimulatorMixin):
         evaluate: Callable[[FNode], FNode] = lambda exp: self._se.evaluate(agent, exp, state)
 
         def evaluate_with_agent(exp):
-            return self._se.evaluate(exp, state, agent=agent)
-        flu = agent.fluent(effect.fluent.fluent().name)
+            return self._se.evaluate(agent, exp, state)
+        #flu = agent.fluent(effect.fluent.fluent().name)
 
         if evaluated_fluent is not None:
             fluent = evaluated_fluent
         else:
             fluent = effect.fluent.fluent()(*(map(evaluate_with_agent, effect.fluent.args)))
+
             #fluent = flu(*(map(evaluate, effect.fluent.args)))
             #fluent = effect.fluent.fluent()(*(map(evaluate, effect.fluent.args)))
         # Define agent_fluent at the beginning to ensure it's available throughout the function
-
-        agent_fluent = em.Dot(agent, fluent)
+        if fluent.fluent() in env.fluents:
+            agent_fluent = fluent #Caso in cui il fluente è dell'environment
+        else:
+            agent_fluent = em.Dot(agent, fluent)
         if evaluated_condition is None:
             evaluated_condition = (
                     not effect.is_conditional() or evaluate(effect.condition).is_true()
@@ -402,7 +411,7 @@ class UPSequentialSimulatorMA(Engine, SequentialSimulatorMixin):
             return None, None
 
     def _get_applicable_actions(
-        self, state: "up.model.State"
+        self, agent: "Agent", state: "up.model.State"
     ) -> Iterator[Tuple["up.model.Action", Tuple["up.model.FNode", ...]]]:
         """
         Returns a view over all the `action + parameters` that are applicable in the given `State`.
@@ -411,7 +420,7 @@ class UPSequentialSimulatorMA(Engine, SequentialSimulatorMixin):
         :return: an `Iterator` of applicable actions + parameters.
         """
         for original_action, params, _ in self._grounder.get_grounded_actions():
-            if self._is_applicable(state, original_action, params):
+            if self._is_applicable(agent, state, original_action, params):
                 yield (original_action, params)
 
     def get_unsatisfied_conditions(
@@ -568,6 +577,7 @@ class UPSequentialSimulatorMA(Engine, SequentialSimulatorMixin):
                         reason = InapplicabilityReasons.VIOLATES_STATE_INVARIANTS
                     if early_termination:
                         break"""
+
         return unsatisfied_conditions, reason
 
     def get_unsatisfied_goals(
@@ -598,7 +608,7 @@ class UPSequentialSimulatorMA(Engine, SequentialSimulatorMixin):
 
     @property
     def name(self) -> str:
-        return "sequential_simulator"
+        return "ma_sequential_simulator"
 
     @staticmethod
     def supported_kind() -> "up.model.ProblemKind":

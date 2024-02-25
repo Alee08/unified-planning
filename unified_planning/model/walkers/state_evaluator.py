@@ -83,7 +83,6 @@ class StateEvaluator(QuantifierSimplifier):
             new_exp = self.manager.Dot(self.agent, expression)
         else:
             new_exp = self.manager.FluentExp(expression.fluent(), tuple(args))
-        #breakpoint()
         return self._state.get_value(new_exp)
 
 
